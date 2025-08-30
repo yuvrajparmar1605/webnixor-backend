@@ -1,75 +1,69 @@
+// server/server.js
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import userRoutes from "./routes/user.js";
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
 
-// ========================
-// 🔹 Middleware
-// ========================
-app.use(cors());
+// ✅ Enable CORS for all devices
+app.use(cors({ origin: "*" }));
+
+// Middleware to parse JSON
 app.use(express.json());
 
-// ========================
-// 🔹 MongoDB Connection
-// ========================
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
 .then(() => console.log("✅ MongoDB connected"))
-.catch((err) => console.error("❌ MongoDB error:", err));
-
-// ========================
-// 🔹 Schemas & Models
-// ========================
+.catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // Contact Message Schema
 const messageSchema = new mongoose.Schema({
-  name: String,
-  email: String,
-  department: String,
-  message: String,
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  department: { type: String },
+  message: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
 
 const Message = mongoose.model("Message", messageSchema);
 
-// ========================
-// 🔹 Routes
-// ========================
+// Test GET route
+app.get("/api/contact", (req, res) => {
+  res.send("API is live. Use POST /api/contact to save messages.");
+});
 
-// 📩 Contact Form API
+// POST Contact form
 app.post("/api/contact", async (req, res) => {
   try {
     const { name, email, department, message } = req.body;
 
     if (!name || !email || !message) {
-      return res.status(400).json({ error: "All fields are required" });
+      return res.status(400).json({ success: false, error: "Name, email, and message are required." });
     }
 
-    const newMsg = new Message({ name, email, department, message });
-    await newMsg.save();
+    const newMessage = new Message({ name, email, department, message });
+    await newMessage.save();
 
-    res.json({ success: true, msg: "Message saved successfully" });
+    res.status(201).json({ success: true, message: "Message saved successfully!" });
   } catch (err) {
-    console.error("Save error:", err);
-    res.status(500).json({ error: "Server error" });
+    console.error("❌ Save error:", err);
+    res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
-// 👤 Users API (from routes/user.js)
-import userRoutes from "./routes/user.js";
+// User API routes
 app.use("/api/users", userRoutes);
 
-// ========================
-// 🔹 Start Server
-// ========================
+// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
